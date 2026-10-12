@@ -25,13 +25,21 @@ a.s,button.s{background:transparent;color:var(--tx);border:1px solid var(--bd);f
 </main>
 <script>
 const $=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const enc=o=>btoa(unescape(encodeURIComponent(JSON.stringify(o)))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
-const dec=s=>JSON.parse(decodeURIComponent(escape(atob(s.replace(/-/g,'+').replace(/_/g,'/')))));
+const SEP='\u0001',b64=s=>{const u=new TextEncoder().encode(s);let b='';u.forEach(c=>b+=String.fromCharCode(c));return btoa(b).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')},
+unb=s=>new TextDecoder().decode(Uint8Array.from(atob(s.replace(/-/g,'+').replace(/_/g,'/')),c=>c.charCodeAt(0))),
+slug=n=>n.toLowerCase().replace(/ł/g,'l').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,'')||'x',
+docId=u=>{const m=u.match(/docs\.google\.com\/document\/d\/([\w-]+)/);return m?m[1]:u},
+encP=o=>slug(o.f)+'~'+b64([o.f,o.t,(o.d||'').replace(/-/g,''),o.b||'',o.x||'',docId(o.l||'')].join(SEP)).replace(/(%0)+$/,''),
+decP=h=>{const p=unb(h.slice(h.indexOf('~')+1)).split(SEP);if(p.length<2)throw 0;
+ return{f:p[0],t:p[1],d:(p[2]||'').replace(/^(\d{4})(\d\d)(\d\d)$/,'$1-$2-$3'),b:p[3],x:p[4],l:/^[\w-]{25,}$/.test(p[5]||'')?'https://docs.google.com/document/d/'+p[5]+'/preview':(p[5]||'')}},
+encO=r=>b64(r.map(x=>x.f+'\u0002'+x.t).join(SEP)),
+decO=s=>unb(s).split(SEP).map(x=>{const q=x.split('\u0002');return{f:q[0],t:q[1]}});
+
 const ymd=d=>d.toISOString().slice(0,10).replace(/-/g,'');
 let links=[],base='',rows=[];
 function route(){const h=location.hash.slice(1);
- if(h.startsWith('org=')){try{rows=dec(h.slice(4));$('app').innerHTML=`<div class="card"><h2>Podgląd organizatora</h2>${ovTable(rows)}</div>`;return}catch(e){}}
- if(h){try{return recv(dec(h))}catch(e){}}
+ if(h.startsWith('org=')){try{rows=decO(h.slice(4));$('app').innerHTML=`<div class="card"><h2>Podgląd organizatora</h2>${ovTable(rows)}</div>`;return}catch(e){}}
+ if(h.includes('~')){try{return recv(decP(h))}catch(e){}}
  setup()}
 function setup(){$('app').innerHTML=`<p class="mu">Jesteś organizatorem? Wpisz dane, kliknij „Losuj” i rozeslij każdemu jego prywatny link. Nikt nie zobaczy cudzego wyniku.</p>
  <div class="card"><h2>Uczestnicy</h2><p class="mu">Jedno imię w linii (min. 3):</p><textarea id="n" rows="6"></textarea>
@@ -60,14 +68,14 @@ function draw(){const n=$('n').value.split('\n').map(s=>s.trim()).filter(Boolean
  base=location.href.split('#')[0];links=[];
  rows=n.map((nm,g)=>({f:nm,t:n[p[g]]}));
  p.forEach((t,g)=>{
-  links.push({name:n[g],url:base+'#'+enc({f:n[g],t:n[t],d:$('d').value,b:$('b').value,x:$('x').value,l:lk})})});
+  links.push({name:n[g],url:base+'#'+encP({f:n[g],t:n[t],d:$('d').value,b:$('b').value,x:$('x').value,l:lk})})});
  links.sort((a,b)=>a.name.localeCompare(b.name,'pl'));
  $('out').innerHTML=`<div class="card"><h2>Gotowe! Linki dla uczestników</h2><p class="mu">Wyślij każdemu tylko jego link (np. na Messengerze). Nie otwieraj cudzych linków, jeśli sam bierzesz udział. Po zamknięciu strony tej listy nie da się odtworzyć, więc rozeslij linki od razu.</p>
- ${links.map((l,i)=>`<div class="lk"><b>${esc(l.name)}</b><div class="row"><button class="s" onclick="cp(${i},this)">Kopiuj link</button><a class="b s" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent('Twoje losowanie prezentów 🎁 '+l.url)}">WhatsApp</a><a class="b s" href="sms:?&body=${encodeURIComponent('Twoje losowanie prezentów 🎁 '+l.url)}">SMS</a></div></div>`).join('')}</div>`;
+ ${links.map((l,i)=>`<div class="lk"><b>${esc(l.name)}</b><div class="row"><button class="s" onclick="cp(${i},this)">Kopiuj link</button><a class="b s" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent('Cześć '+l.name+'! 🎁 Twoje losowanie prezentów (tylko dla Ciebie): '+l.url)}">WhatsApp</a><a class="b s" href="sms:?&body=${encodeURIComponent('Cześć '+l.name+'! 🎁 Twoje losowanie prezentów (tylko dla Ciebie): '+l.url)}">SMS</a></div></div>`).join('')}</div>`;
  $('out').insertAdjacentHTML('beforeend',`<div class="card"><h2>Podgląd organizatora</h2><p class="mu">Zawiera wyniki wszystkich osób, więc jest ukryty. Jeśli sam bierzesz udział, nie klikaj, żeby nie zepsuć sobie niespodzianki. „Link organizatora” pozwala wrócić do podglądu później.</p><div class="row"><button class="s" onclick="$('ov').hidden=!$('ov').hidden">Pokaż / ukryj podgląd</button><button class="s" onclick="cpo(this)">Kopiuj link organizatora</button></div><div id="ov" hidden>${ovTable(rows)}</div></div>`);
  $('out').scrollIntoView({behavior:'smooth'})}
 function ovTable(r){return `<div style="overflow-x:auto"><table style="border-collapse:collapse;width:100%;margin-top:8px"><tr class="mu"><td style="padding:6px 8px 6px 0">Kto losował</td><td style="padding:6px 8px">Wylosował(a)</td></tr>${r.map(x=>`<tr style="border-top:1px solid var(--bd);vertical-align:top"><td style="padding:6px 8px 6px 0"><b>${esc(x.f)}</b></td><td style="padding:6px 8px">→ ${esc(x.t)}</td></tr>`).join('')}</table></div>`}
-async function cpo(b){const u=base+'#org='+enc(rows);try{await navigator.clipboard.writeText(u);b.textContent='Skopiowano ✓'}catch(e){prompt('Skopiuj link:',u)}}
+async function cpo(b){const u=base+'#org='+encO(rows);try{await navigator.clipboard.writeText(u);b.textContent='Skopiowano ✓'}catch(e){prompt('Skopiuj link:',u)}}
 async function cp(i,b){try{await navigator.clipboard.writeText(links[i].url);b.textContent='Skopiowano ✓'}catch(e){prompt('Skopiuj link:',links[i].url)}}
 function recv(r){const dd=r.d?new Date(r.d+'T12:00:00'):null;let n='';
  if(dd){const k=Math.ceil((dd-new Date())/864e5);n=k>0?`<p class="mu">Do wręczania prezentów: ${k} dni</p>`:''}
@@ -77,12 +85,13 @@ function recv(r){const dd=r.d?new Date(r.d+'T12:00:00'):null;let n='';
  <div class="card"><h2>ℹ️ Informacje</h2>${r.d?`<div>📅 Data: <b>${esc(r.d)}</b></div>`:''}${r.b?`<div>💰 Budżet: <b>${esc(r.b)}</b></div>`:''}${r.x?`<div class="pre" style="margin-top:6px">${esc(r.x)}</div>`:''}${/^https:\/\//i.test(r.l||'')?`<div style="margin-top:12px"><a class="b" href="${esc(r.l)}" target="_blank" rel="noopener noreferrer">📄 Otwórz dokument</a></div>`:''}</div>
  <div class="card"><h2>⏰ Przypomnienie</h2><p class="mu">Wybierz dzień, w którym chcesz dostać przypomnienie o zakupie prezentu.</p>
  <div class="row"><input type="date" id="rd" value="${rdv}"><a class="b" id="g" target="_blank" rel="noopener">Dodaj do Kalendarza Google</a><button class="s" id="ic">Pobierz plik .ics</button></div></div>`;
+ const det=[r.b?'Budżet: '+r.b:'',r.d?'Data wręczania: '+r.d:'',/^https:\/\//i.test(r.l||'')?'Dokument: '+r.l:''].filter(Boolean).join('\n');
  const upd=()=>{const v=$('rd').value;if(!v)return;const s=v.replace(/-/g,''),e=ymd(new Date(new Date(v+'T12:00:00').getTime()+864e5));
-  $('g').href='https://calendar.google.com/calendar/render?action=TEMPLATE&text='+encodeURIComponent('Kup prezent dla: '+r.t)+'&dates='+s+'/'+e};
+  $('g').href='https://calendar.google.com/calendar/render?action=TEMPLATE&text='+encodeURIComponent('Kup prezent dla: '+r.t)+'&dates='+s+'/'+e+'&details='+encodeURIComponent(det)};
  $('rd').onchange=upd;upd();
  $('ic').onclick=async()=>{const v=$('rd').value;if(!v)return;const s=v.replace(/-/g,''),e=ymd(new Date(new Date(v+'T12:00:00').getTime()+864e5));
   const t='Kup prezent dla: '+r.t;
-  const c=`BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//losowanie//PL\r\nBEGIN:VEVENT\r\nUID:p1@losowanie\r\nDTSTAMP:20261012T000000Z\r\nDTSTART;VALUE=DATE:${s}\r\nDTEND;VALUE=DATE:${e}\r\nSUMMARY:${t}\r\nBEGIN:VALARM\r\nACTION:DISPLAY\r\nDESCRIPTION:${t}\r\nTRIGGER:PT9H\r\nEND:VALARM\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n`;
+  const c=`BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//losowanie//PL\r\nBEGIN:VEVENT\r\nUID:p1@losowanie\r\nDTSTAMP:20261012T000000Z\r\nDTSTART;VALUE=DATE:${s}\r\nDTEND;VALUE=DATE:${e}\r\nSUMMARY:${t}\r\nDESCRIPTION:${det.replace(/[\\;,]/g,m=>'\\'+m).replace(/\n/g,'\\n')}\r\nBEGIN:VALARM\r\nACTION:DISPLAY\r\nDESCRIPTION:${t}\r\nTRIGGER:PT9H\r\nEND:VALARM\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n`;
   const bl=new Blob([c],{type:'text/calendar'}),a=document.createElement('a');a.href=URL.createObjectURL(bl);a.download='przypomnienie.ics';document.body.appendChild(a);a.click();a.remove()}}
 window.addEventListener('hashchange',route);route();
 </script></body></html>
