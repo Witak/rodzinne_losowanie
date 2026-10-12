@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="pl"><head><meta charset="utf-8"><title>Rodzinne losowanie prezentów</title>
+<meta name="robots" content="noindex">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>
+:root{--bg:#fbf6ee;--card:#fff;--tx:#2b2420;--mu:#7a6d63;--red:#b3261e;--grn:#1f6b45;--bd:#e7dccd;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#17120f;--card:#231c18;--tx:#f3e9dd;--mu:#a89a8c;--red:#ef6a60;--grn:#58c08a;--bd:#3a2f28}}
+:root[data-theme="dark"]{--bg:#17120f;--card:#231c18;--tx:#f3e9dd;--mu:#a89a8c;--red:#ef6a60;--grn:#58c08a;--bd:#3a2f28}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.5 Georgia,'Times New Roman',serif}
+main{max-width:640px;margin:0 auto;padding:20px 16px 48px}
+h1{font-size:28px;margin:8px 0 4px;color:var(--red)}h2{font-size:18px;margin:0 0 10px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:16px;margin:0 0 14px}
+button,input,textarea,a.b{font:inherit;color:var(--tx);background:var(--bg);border:1px solid var(--bd);border-radius:10px;padding:10px 12px;max-width:100%;box-sizing:border-box}
+textarea,input[type=text]{width:100%}
+button,a.b{cursor:pointer;background:var(--red);color:#fff;border:0;font-weight:bold;text-decoration:none;display:inline-block}
+a.s,button.s{background:transparent;color:var(--tx);border:1px solid var(--bd);font-weight:normal}
+.big{font-size:28px;text-align:center;margin:10px 0;color:var(--grn);font-weight:bold}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:6px 0}
+.mu{color:var(--mu);font-size:14px}.pre{white-space:pre-wrap}
+.lk{border-top:1px solid var(--bd);padding:10px 0}
+</style></head><body><main>
+<h1>🎄 Losowanie prezentów</h1>
+<div id="app"></div>
+</main>
+<script>
+const $=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const enc=o=>btoa(unescape(encodeURIComponent(JSON.stringify(o)))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+const dec=s=>JSON.parse(decodeURIComponent(escape(atob(s.replace(/-/g,'+').replace(/_/g,'/')))));
+const ymd=d=>d.toISOString().slice(0,10).replace(/-/g,'');
+let links=[],base='';
+function route(){const h=location.hash.slice(1);
+ if(h==='zyczenia')return wishForm();
+ if(h){try{return recv(dec(h))}catch(e){}}
+ setup()}
+function setup(){$('app').innerHTML=`<p class="mu">Jesteś organizatorem? Wpisz dane, kliknij „Losuj” i rozeslij każdemu jego prywatny link. Nikt nie zobaczy cudzego wyniku.</p>
+ <div class="card"><h2>Uczestnicy</h2><p class="mu">Jedno imię w linii (min. 3):</p><textarea id="n" rows="6"></textarea>
+ <p class="mu">Pary, które nie losują siebie nawzajem (jedna para w linii, format „imię - imię”):</p><textarea id="p" rows="3">wera - daniel
+ema - wojtek
+mama - tata</textarea>
+ <p class="mu">Listy życzeń (jedna osoba w linii, format „Imię: życzenia”). Każdy może wpisać swoją listę w formularzu, który wyśle Ci gotową linijkę do wklejenia:</p>
+ <div class="row"><button class="s" onclick="cpw(this)">Kopiuj link do formularza życzeń</button></div>
+ <textarea id="w" rows="4" placeholder="Ola: książki, herbata&#10;Kuba: gry planszowe"></textarea>
+ <p class="mu">Data wręczania:</p><input type="date" id="d" value="2026-12-24">
+ <p class="mu">Budżet:</p><input type="text" id="b" placeholder="np. 100 zł">
+ <p class="mu">Informacje dla wszystkich (miejsce, godzina, zasady, pomysły):</p><textarea id="x" rows="3"></textarea>
+ <div class="row"><button onclick="draw()">Losuj 🎲</button></div></div><div id="out"></div>`}
+function draw(){const n=$('n').value.split('\n').map(s=>s.trim()).filter(Boolean);
+ if(n.length<3){alert('Podaj co najmniej 3 osoby.');return}
+ const low=n.map(s=>s.toLowerCase()),bad=new Set();
+ for(const ln of $('p').value.split('\n')){const m=ln.split(/\s+[-–—]\s+/).map(s=>s.trim().toLowerCase()).filter(Boolean);
+  if(m.length<2)continue;const a=low.indexOf(m[0]),b=low.indexOf(m[1]);
+  if(a<0||b<0){alert('Tej osoby nie ma na liście uczestników: '+(a<0?m[0]:m[1]));return}
+  bad.add(a+'-'+b);bad.add(b+'-'+a)}
+ const W={};for(const ln of $('w').value.split('\n')){const i=ln.indexOf(':');if(i>0)W[ln.slice(0,i).trim().toLowerCase()]=ln.slice(i+1).trim()}
+ let p=null;
+ for(let k=0;k<20000&&!p;k++){const o=n.map((_,i)=>i);for(let i=o.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[o[i],o[j]]=[o[j],o[i]]}
+  if(o.every((t,i)=>t!==i&&!bad.has(i+'-'+t)))p=o}
+ if(!p){alert('Nie da się wylosować przy takich ograniczeniach. Dodaj więcej osób lub usuń część par.');return}
+ base=location.href.split('#')[0];links=[];
+ p.forEach((t,g)=>{
+  links.push({name:n[g],url:base+'#'+enc({f:n[g],t:n[t],d:$('d').value,b:$('b').value,x:$('x').value,w:W[low[t]]||''})})});
+ links.sort((a,b)=>a.name.localeCompare(b.name,'pl'));
+ $('out').innerHTML=`<div class="card"><h2>Gotowe! Linki dla uczestników</h2><p class="mu">Wyślij każdemu tylko jego link (np. na Messengerze). Nie otwieraj cudzych linków, jeśli sam bierzesz udział. Po zamknięciu strony tej listy nie da się odtworzyć, więc rozeslij linki od razu.</p>
+ ${links.map((l,i)=>`<div class="lk"><b>${esc(l.name)}</b><div class="row"><button class="s" onclick="cp(${i},this)">Kopiuj link</button><a class="b s" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent('Twoje losowanie prezentów 🎁 '+l.url)}">WhatsApp</a><a class="b s" href="sms:?&body=${encodeURIComponent('Twoje losowanie prezentów 🎁 '+l.url)}">SMS</a></div></div>`).join('')}</div>`;
+ $('out').scrollIntoView({behavior:'smooth'})}
+async function cp(i,b){try{await navigator.clipboard.writeText(links[i].url);b.textContent='Skopiowano ✓'}catch(e){prompt('Skopiuj link:',links[i].url)}}
+function recv(r){const dd=r.d?new Date(r.d+'T12:00:00'):null;let n='';
+ if(dd){const k=Math.ceil((dd-new Date())/864e5);n=k>0?`<p class="mu">Do wręczania prezentów: ${k} dni</p>`:''}
+ const rd=dd?new Date(dd.getTime()-14*864e5):new Date(Date.now()+7*864e5);
+ const rdv=(rd<new Date()?new Date(Date.now()+864e5):rd).toISOString().slice(0,10);
+ $('app').innerHTML=`${n}<div class="card"><h2>Cześć ${esc(r.f)}! Kupujesz prezent dla:</h2><div class="big">🎁 ${esc(r.t)}</div><p class="mu">Zachowaj to w tajemnicy 🤫</p></div>
+ <div class="card"><h2>ℹ️ Informacje</h2>${r.d?`<div>📅 Data: <b>${esc(r.d)}</b></div>`:''}${r.b?`<div>💰 Budżet: <b>${esc(r.b)}</b></div>`:''}${r.x?`<div class="pre" style="margin-top:6px">${esc(r.x)}</div>`:''}</div>
+ <div class="card"><h2>🎁 Czego życzy sobie ${esc(r.t)}</h2><div class="pre">${r.w?esc(r.w):'<span class="mu">Brak listy życzeń. Zapytaj organizatora.</span>'}</div></div>
+ <div class="card"><h2>⏰ Przypomnienie</h2><p class="mu">Wybierz dzień, w którym chcesz dostać przypomnienie o zakupie prezentu.</p>
+ <div class="row"><input type="date" id="rd" value="${rdv}"><a class="b" id="g" target="_blank" rel="noopener">Dodaj do Kalendarza Google</a><button class="s" id="ic">Pobierz plik .ics</button></div></div>`;
+ const upd=()=>{const v=$('rd').value;if(!v)return;const s=v.replace(/-/g,''),e=ymd(new Date(new Date(v+'T12:00:00').getTime()+864e5));
+  $('g').href='https://calendar.google.com/calendar/render?action=TEMPLATE&text='+encodeURIComponent('Kup prezent dla: '+r.t)+'&dates='+s+'/'+e};
+ $('rd').onchange=upd;upd();
+ $('ic').onclick=async()=>{const v=$('rd').value;if(!v)return;const s=v.replace(/-/g,''),e=ymd(new Date(new Date(v+'T12:00:00').getTime()+864e5));
+  const t='Kup prezent dla: '+r.t;
+  const c=`BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//losowanie//PL\r\nBEGIN:VEVENT\r\nUID:p1@losowanie\r\nDTSTAMP:20261012T000000Z\r\nDTSTART;VALUE=DATE:${s}\r\nDTEND;VALUE=DATE:${e}\r\nSUMMARY:${t}\r\nBEGIN:VALARM\r\nACTION:DISPLAY\r\nDESCRIPTION:${t}\r\nTRIGGER:PT9H\r\nEND:VALARM\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n`;
+  const bl=new Blob([c],{type:'text/calendar'}),a=document.createElement('a');a.href=URL.createObjectURL(bl);a.download='przypomnienie.ics';document.body.appendChild(a);a.click();a.remove()}}
+async function cpw(b){const u=location.href.split('#')[0]+'#zyczenia';try{await navigator.clipboard.writeText(u);b.textContent='Skopiowano ✓'}catch(e){prompt('Skopiuj link:',u)}}
+function wishForm(){$('app').innerHTML=`<div class="card"><h2>Twoja lista życzeń</h2><p class="mu">Wpisz imię (tak samo jak na liście uczestników) i to, co chcesz dostać. Potem skopiuj gotową linijkę i wyślij ją organizatorowi.</p><input type="text" id="wn" placeholder="Twoje imię"><p></p><textarea id="wt" rows="4" placeholder="np. książki fantasy, dobra herbata, skarpetki"></textarea><div class="row"><button onclick="wl()">Utwórz linijkę</button></div><div id="wo"></div></div>`}
+function wl(){const n=$('wn').value.trim(),t=$('wt').value.trim().replace(/\s*\n+\s*/g,'; ');if(!n||!t){alert('Wpisz imię i życzenia.');return}
+ const s=n+': '+t;$('wo').innerHTML=`<p class="mu">Skopiuj i wyślij organizatorowi:</p><div class="pre"><b>${esc(s)}</b></div><div class="row"><button class="s" id="wc">Kopiuj</button></div>`;
+ $('wc').onclick=async()=>{try{await navigator.clipboard.writeText(s);$('wc').textContent='Skopiowano ✓'}catch(e){prompt('Skopiuj:',s)}}}
+window.addEventListener('hashchange',route);route();
+</script></body></html>
