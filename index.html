@@ -29,8 +29,8 @@ const SEP='\u0001',b64=s=>{const u=new TextEncoder().encode(s);let b='';u.forEac
 unb=s=>new TextDecoder().decode(Uint8Array.from(atob(s.replace(/-/g,'+').replace(/_/g,'/')),c=>c.charCodeAt(0))),
 slug=n=>n.toLowerCase().replace(/ł/g,'l').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,'')||'x',
 docId=u=>{const m=u.match(/docs\.google\.com\/document\/d\/([\w-]+)/);return m?m[1]:u},
-encP=o=>slug(o.f)+'~'+b64([o.f,o.t,(o.d||'').replace(/-/g,''),o.b||'',o.x||'',docId(o.l||'')].join(SEP)).replace(/(%0)+$/,''),
-decP=h=>{const p=unb(h.slice(h.indexOf('~')+1)).split(SEP);if(p.length<2)throw 0;
+encP=o=>slug(o.f)+'-'+b64([o.f,o.t,(o.d||'').replace(/-/g,''),o.b||'',o.x||'',docId(o.l||'')].join(SEP)).replace(/(%0)+$/,''),
+decP=h=>{const p=unb(h.slice(h.indexOf('-')+1)).split(SEP);if(p.length<2)throw 0;
  return{f:p[0],t:p[1],d:(p[2]||'').replace(/^(\d{4})(\d\d)(\d\d)$/,'$1-$2-$3'),b:p[3],x:p[4],l:/^[\w-]{25,}$/.test(p[5]||'')?'https://docs.google.com/document/d/'+p[5]+'/preview':(p[5]||'')}},
 encO=r=>b64(r.map(x=>x.f+'\u0002'+x.t).join(SEP)),
 decO=s=>unb(s).split(SEP).map(x=>{const q=x.split('\u0002');return{f:q[0],t:q[1]}});
@@ -38,8 +38,9 @@ decO=s=>unb(s).split(SEP).map(x=>{const q=x.split('\u0002');return{f:q[0],t:q[1]
 const ymd=d=>d.toISOString().slice(0,10).replace(/-/g,'');
 let links=[],base='',rows=[];
 function route(){const h=location.hash.slice(1);
- if(h.startsWith('org=')){try{rows=decO(h.slice(4));$('app').innerHTML=`<div class="card"><h2>Podgląd organizatora</h2>${ovTable(rows)}</div>`;return}catch(e){}}
- if(h.includes('~')){try{return recv(decP(h))}catch(e){}}
+ if(h.startsWith('_org-')){try{rows=decO(h.slice(5));$('app').innerHTML=`<div class="card"><h2>Podgląd organizatora</h2>${ovTable(rows)}</div>`;return}catch(e){}}
+ if(h.includes('-')){try{return recv(decP(h))}catch(e){}}
+ if(h){$('app').innerHTML='<div class="card"><h2>Ten link jest niepełny 😕</h2><p>Wygląda na to, że komunikator ucięł końcówkę linku. Poproś organizatora o ponowne wysłanie swojego linku (najlepiej jako samą wiadomość z linkiem).</p></div>';return}
  setup()}
 function setup(){$('app').innerHTML=`<p class="mu">Jesteś organizatorem? Wpisz dane, kliknij „Losuj” i rozeslij każdemu jego prywatny link. Nikt nie zobaczy cudzego wyniku.</p>
  <div class="card"><h2>Uczestnicy</h2><p class="mu">Jedno imię w linii (min. 3):</p><textarea id="n" rows="6"></textarea>
@@ -75,7 +76,7 @@ function draw(){const n=$('n').value.split('\n').map(s=>s.trim()).filter(Boolean
  $('out').insertAdjacentHTML('beforeend',`<div class="card"><h2>Podgląd organizatora</h2><p class="mu">Zawiera wyniki wszystkich osób, więc jest ukryty. Jeśli sam bierzesz udział, nie klikaj, żeby nie zepsuć sobie niespodzianki. „Link organizatora” pozwala wrócić do podglądu później.</p><div class="row"><button class="s" onclick="$('ov').hidden=!$('ov').hidden">Pokaż / ukryj podgląd</button><button class="s" onclick="cpo(this)">Kopiuj link organizatora</button></div><div id="ov" hidden>${ovTable(rows)}</div></div>`);
  $('out').scrollIntoView({behavior:'smooth'})}
 function ovTable(r){return `<div style="overflow-x:auto"><table style="border-collapse:collapse;width:100%;margin-top:8px"><tr class="mu"><td style="padding:6px 8px 6px 0">Kto losował</td><td style="padding:6px 8px">Wylosował(a)</td></tr>${r.map(x=>`<tr style="border-top:1px solid var(--bd);vertical-align:top"><td style="padding:6px 8px 6px 0"><b>${esc(x.f)}</b></td><td style="padding:6px 8px">→ ${esc(x.t)}</td></tr>`).join('')}</table></div>`}
-async function cpo(b){const u=base+'#org='+encO(rows);try{await navigator.clipboard.writeText(u);b.textContent='Skopiowano ✓'}catch(e){prompt('Skopiuj link:',u)}}
+async function cpo(b){const u=base+'#_org-'+encO(rows);try{await navigator.clipboard.writeText(u);b.textContent='Skopiowano ✓'}catch(e){prompt('Skopiuj link:',u)}}
 async function cp(i,b){try{await navigator.clipboard.writeText(links[i].url);b.textContent='Skopiowano ✓'}catch(e){prompt('Skopiuj link:',links[i].url)}}
 function recv(r){const dd=r.d?new Date(r.d+'T12:00:00'):null;let n='';
  if(dd){const k=Math.ceil((dd-new Date())/864e5);n=k>0?`<p class="mu">Do wręczania prezentów: ${k} dni</p>`:''}
