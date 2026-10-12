@@ -41,6 +41,7 @@ mama - tata</textarea>
  <p class="mu">Data wręczania:</p><input type="date" id="d" value="2026-12-24">
  <p class="mu">Budżet:</p><input type="text" id="b" placeholder="np. 100 zł">
  <p class="mu">Informacje dla wszystkich (miejsce, godzina, zasady, pomysły):</p><textarea id="x" rows="3"></textarea>
+ <p class="mu">Link do dokumentu dla wszystkich (np. Google Docs, opcjonalnie). W Dokumentach ustaw udostępnianie na „Każdy, kto ma link – Wyświetlający”:</p><input type="text" id="l" placeholder="https://docs.google.com/document/d/...">
  <div class="row"><button onclick="draw()">Losuj 🎲</button></div></div><div id="out"></div>`}
 function draw(){const n=$('n').value.split('\n').map(s=>s.trim()).filter(Boolean);
  if(n.length<3){alert('Podaj co najmniej 3 osoby.');return}
@@ -49,6 +50,9 @@ function draw(){const n=$('n').value.split('\n').map(s=>s.trim()).filter(Boolean
   if(m.length<2)continue;const a=low.indexOf(m[0]),b=low.indexOf(m[1]);
   if(a<0||b<0){alert('Tej osoby nie ma na liście uczestników: '+(a<0?m[0]:m[1]));return}
   bad.add(a+'-'+b);bad.add(b+'-'+a)}
+ let lk=$('l').value.trim();
+ if(lk&&!/^https:\/\//i.test(lk)){alert('Link do dokumentu musi zaczynać się od https://');return}
+ if(/^https:\/\/docs\.google\.com\/document\/d\/[^/]+\/(edit|view).*$/i.test(lk))lk=lk.replace(/\/(edit|view).*$/i,'/preview');
  let p=null;
  for(let k=0;k<20000&&!p;k++){const o=n.map((_,i)=>i);for(let i=o.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[o[i],o[j]]=[o[j],o[i]]}
   if(o.every((t,i)=>t!==i&&!bad.has(i+'-'+t)))p=o}
@@ -56,7 +60,7 @@ function draw(){const n=$('n').value.split('\n').map(s=>s.trim()).filter(Boolean
  base=location.href.split('#')[0];links=[];
  rows=n.map((nm,g)=>({f:nm,t:n[p[g]]}));
  p.forEach((t,g)=>{
-  links.push({name:n[g],url:base+'#'+enc({f:n[g],t:n[t],d:$('d').value,b:$('b').value,x:$('x').value})})});
+  links.push({name:n[g],url:base+'#'+enc({f:n[g],t:n[t],d:$('d').value,b:$('b').value,x:$('x').value,l:lk})})});
  links.sort((a,b)=>a.name.localeCompare(b.name,'pl'));
  $('out').innerHTML=`<div class="card"><h2>Gotowe! Linki dla uczestników</h2><p class="mu">Wyślij każdemu tylko jego link (np. na Messengerze). Nie otwieraj cudzych linków, jeśli sam bierzesz udział. Po zamknięciu strony tej listy nie da się odtworzyć, więc rozeslij linki od razu.</p>
  ${links.map((l,i)=>`<div class="lk"><b>${esc(l.name)}</b><div class="row"><button class="s" onclick="cp(${i},this)">Kopiuj link</button><a class="b s" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent('Twoje losowanie prezentów 🎁 '+l.url)}">WhatsApp</a><a class="b s" href="sms:?&body=${encodeURIComponent('Twoje losowanie prezentów 🎁 '+l.url)}">SMS</a></div></div>`).join('')}</div>`;
@@ -70,7 +74,7 @@ function recv(r){const dd=r.d?new Date(r.d+'T12:00:00'):null;let n='';
  const rd=dd?new Date(dd.getTime()-14*864e5):new Date(Date.now()+7*864e5);
  const rdv=(rd<new Date()?new Date(Date.now()+864e5):rd).toISOString().slice(0,10);
  $('app').innerHTML=`${n}<div class="card"><h2>Cześć ${esc(r.f)}! Kupujesz prezent dla:</h2><div class="big">🎁 ${esc(r.t)}</div><p class="mu">Zachowaj to w tajemnicy 🤫</p></div>
- <div class="card"><h2>ℹ️ Informacje</h2>${r.d?`<div>📅 Data: <b>${esc(r.d)}</b></div>`:''}${r.b?`<div>💰 Budżet: <b>${esc(r.b)}</b></div>`:''}${r.x?`<div class="pre" style="margin-top:6px">${esc(r.x)}</div>`:''}</div>
+ <div class="card"><h2>ℹ️ Informacje</h2>${r.d?`<div>📅 Data: <b>${esc(r.d)}</b></div>`:''}${r.b?`<div>💰 Budżet: <b>${esc(r.b)}</b></div>`:''}${r.x?`<div class="pre" style="margin-top:6px">${esc(r.x)}</div>`:''}${/^https:\/\//i.test(r.l||'')?`<div style="margin-top:12px"><a class="b" href="${esc(r.l)}" target="_blank" rel="noopener noreferrer">📄 Otwórz dokument</a></div>`:''}</div>
  <div class="card"><h2>⏰ Przypomnienie</h2><p class="mu">Wybierz dzień, w którym chcesz dostać przypomnienie o zakupie prezentu.</p>
  <div class="row"><input type="date" id="rd" value="${rdv}"><a class="b" id="g" target="_blank" rel="noopener">Dodaj do Kalendarza Google</a><button class="s" id="ic">Pobierz plik .ics</button></div></div>`;
  const upd=()=>{const v=$('rd').value;if(!v)return;const s=v.replace(/-/g,''),e=ymd(new Date(new Date(v+'T12:00:00').getTime()+864e5));
